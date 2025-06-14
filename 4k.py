@@ -30,13 +30,14 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
-API_ID = 24500584
-API_HASH = "449da69cf4081dc2cc74eea828d0c490"
-BOT_TOKEN = "7859842889:AAG5jD89VW5xEo9qXT8J0OsB-byL5aJTqZM"
+API_ID = 27727369
+API_HASH = "1a6616b34f66ed256a8330ad9cb674ed"
+BOT_TOKEN = "7963153501:AAE219JXO67JGA2IWn8StmTOXV8EuoKq_OM"
 MAX_CONCURRENT_TASKS = 1
 MAX_FILE_SIZE = 4 * 1024 * 1024 * 1024  # 4GB
+STRING_SESSION = "BQDWZRoAxcpKsPBZVB3Lu5Ubmwpm3kLe-UPYOMi7BNGPqXbHSirNg1TatFUuWGHE8KZFUn4B5OcFp0rqWBx7tabyYbHOfjUBH9Evx6fco_KAyAZ22qm9XfISbsylguAlnVr6rNIaHiDk97xPX0ws0X0rpPWwwkUNcCa97mXbE2L1qVvPi3NF9ADq1_VEI2Y2KhmfPo4JQWsRDcBJqYh0a8TABs97PRceotZZ3rwzZMjLWEpp9VQFrasemXkIwCtbTh49Huo7NDBYjn_KTiB6HIYbMjgQMAouToLeVaxDbFAbocGrfmODDa1PVwvdr2hkJiJ7iEGmhelC2sOoFU3NZ5l4hPaATAAAAAHLqOaiAA"  
 MAX_QUEUE_SIZE = 50
-BOT_OWNER_ID = 1047253913
+BOT_OWNER_ID = 1074804932
 MONGODB_URI = "mongodb+srv://erenyeagermikasa84:pkbOXb3ulzi9cEFd@cluster0.ingt8mt.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 MONGODB_NAME = "Cluster0"
 
@@ -110,9 +111,22 @@ bot = Client(
     bot_token=BOT_TOKEN,
     workers=200,
     sleep_threshold=30,
-    max_concurrent_transmissions=5,
+
     in_memory=True
 )
+
+if STRING_SESSION:
+    user_client = Client(
+        "video_encoder_user",
+        api_id=API_ID,
+        api_hash=API_HASH,
+        session_string=STRING_SESSION,
+        workers=100,
+        sleep_threshold=30,
+        in_memory=False  # Use file-based session storage
+    )
+else:
+    user_client = None
 
 for folder in ["downloads", "encoded", "thumbnails", "watermarks"]:
     makedirs(folder, exist_ok=True)
@@ -297,7 +311,7 @@ class VideoEncoder:
 
         if watermark_path and ospath.exists(watermark_path) and use_watermark:
             cmd.extend(['-i', watermark_path])
-            watermark_scale = "scale=iw*0.15:-1"  # 15% of input width
+            watermark_scale = "scale=iw*0.15:-1"  
             filter_complex = (
                 f"[0:v]scale=3840:2160:flags=bicubic+accurate_rnd+full_chroma_inp[scaled];"
                 f"[1:v]{watermark_scale},format=rgba,colorchannelmixer=aa=0.5[wm];"
@@ -315,7 +329,7 @@ class VideoEncoder:
                 '-map', '0:v?',
             ])
 
-        # Add all audio and subtitle streams
+       
         cmd.extend([
             '-map', '0:a?',
             '-map', '0:s?',
@@ -335,14 +349,14 @@ class VideoEncoder:
             '-c:s', 'copy',
         ])
 
-        # Add metadata for all streams
+    
         title = metadata.get('title', 'Untitled')
         cmd.extend(['-metadata', f'title={title}'])
 
-        # Add metadata for each video stream
+
         cmd.extend(['-metadata:s:v:0', f'title={title} (Video)'])
 
-        # Add metadata for each audio stream
+      
         audio_streams = subprocess.check_output([
             'ffprobe', '-v', 'error', '-select_streams', 'a', '-show_entries',
             'stream=index', '-of', 'csv=p=0', input_path
@@ -351,7 +365,7 @@ class VideoEncoder:
         for i, _ in enumerate(audio_streams):
             cmd.extend(['-metadata:s:a:' + str(i), f'title={title} (Audio {i + 1})'])
 
-        # Add metadata for each subtitle stream
+     
         subtitle_streams = subprocess.check_output([
             'ffprobe', '-v', 'error', '-select_streams', 's', '-show_entries',
             'stream=index', '-of', 'csv=p=0', input_path
@@ -392,7 +406,7 @@ class VideoEncoder:
 
             logger.info(f"Running FFmpeg command: {' '.join(cmd)}")
 
-            # Create temporary progress file
+       
             progress_file = f"progress_{int(time.time())}.log"
             with open(progress_file, 'w') as f:
                 f.write("")
@@ -431,7 +445,7 @@ class VideoEncoder:
                                 current_time_ms = int(progress_data['out_time_ms'])
                                 current_progress = min(99.9, (current_time_ms / 1_000_000 / video_info['duration']) * 100)
                                 
-                                # Handle speed value (may contain 'x' suffix)
+                                
                                 speed_str = progress_data.get('speed', '1.0')
                                 try:
                                     speed = float(speed_str.rstrip('x')) if 'x' in speed_str else float(speed_str)
@@ -511,8 +525,7 @@ class VideoEncoder:
             _, ext = ospath.splitext(filename)
 
             new_base = re.sub(r'[^\w\-_(). ]', '', new_name).strip()
-            new_base = re.sub(r'\s+', ' ', new_base)  # Collapse multiple spaces
-
+            new_base = re.sub(r'\s+', ' ', new_base)  
             return f"{new_base}{ext}"
         except Exception as e:
             logger.warning(f"Filename renaming failed: {e}")
@@ -537,7 +550,7 @@ async def process_file(
         if rename_pattern:
             original_name = encoder.apply_rename(original_name, rename_pattern)
         
-        output_filename = f"{original_name}_4K.mkv"
+        output_filename = f"{original_name}_[4K].mkv"
         final_output = ospath.join("encoded", output_filename)
         makedirs(ospath.dirname(final_output), exist_ok=True)
 
@@ -672,6 +685,7 @@ async def download_file_with_progress(
         )
         return None
 
+
 async def upload_file_with_progress(
     chat_id: int,
     file_path: str,
@@ -682,11 +696,11 @@ async def upload_file_with_progress(
     try:
         file_size = ospath.getsize(file_path)
         file_name = ospath.basename(file_path)
-        
+
         last_bytes = 0
         last_update = start_time
         speed_history = []
-        
+
         await update_progress(
             chat_id,
             f"📤 Preparing to upload: {file_name}\n"
@@ -695,32 +709,31 @@ async def upload_file_with_progress(
             stage='upload',
             start_time=start_time
         )
-        
+
         async def progress_callback(current, total):
             nonlocal last_bytes, last_update, speed_history
-            
+
             now = time.time()
-            if now - last_update < 2.0:  # Throttle updates
+            if now - last_update < 2.0:
                 return
-                
+
             progress = (current / total) * 100
             elapsed = now - start_time
-            
+
             current_speed = (current - last_bytes) / (now - last_update)
             speed_history.append(current_speed)
-            
+
             if len(speed_history) > 5:
                 speed_history.pop(0)
-                
+
             avg_speed = sum(speed_history) / len(speed_history) if speed_history else current_speed
-            
             remaining_bytes = total - current
             eta = remaining_bytes / avg_speed if avg_speed > 0 else 0
-            
+
             speed_str = humanize.naturalsize(avg_speed) + "/s"
             elapsed_str = f"{int(elapsed // 60)}m {int(elapsed % 60)}s"
             eta_str = humanize.naturaldelta(eta) if eta > 0 else "soon"
-            
+
             await update_progress(
                 chat_id,
                 f"📤 Uploading: {file_name}\n"
@@ -730,20 +743,28 @@ async def upload_file_with_progress(
                 progress=progress,
                 stage='upload'
             )
-            
+
             last_bytes = current
             last_update = now
 
-        await bot.send_document(
+        # Choose sender: user_client for >2GB, otherwise bot
+        sender = user_client if file_size > 2 * 1024 * 1024 * 1024 and user_client else bot
+
+        # Ensure thumbnail exists
+        thumb = thumbnail_path if thumbnail_path and ospath.exists(thumbnail_path) else None
+
+        await sender.send_document(
             chat_id=chat_id,
             document=file_path,
-            thumb=thumbnail_path,
+            thumb=thumb,
             progress=progress_callback
         )
-            
+
         return True
+
     except Exception as e:
-        logger.error(f"Upload failed: {str(e)}")
+        logger.error(f"❌ Upload failed for {file_path}: {e}")
+        await bot.send_message(chat_id, f"❌ Upload failed:\n`{e}`")
         return False
 
 async def start_processing(chat_id: int):
